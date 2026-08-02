@@ -1,1 +1,0 @@
-# Student-Managemen-System-2.0
