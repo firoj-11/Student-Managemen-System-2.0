@@ -11,11 +11,6 @@
 </head>
 <body>
 
-<!-- GLOBAL LOADER -->
-<div id="globalLoader" class="global-loader" style="display:none;">
-    <div class="spinner"></div>
-</div>
-
 <div class="orb orb1"></div>
 <div class="orb orb2"></div>
 <div class="orb orb3"></div>
@@ -30,7 +25,7 @@
         <div class="brand-sub">CIME Portal</div>
       </div>
     </div>
-    <form id="loginForm" onsubmit="handleLogin(event)">
+    <form id="loginForm" onsubmit="return false;">
       <div class="form-grid" style="grid-template-columns: 1fr;">
         <div class="form-field full">
           <label>Email Address</label>
@@ -40,6 +35,13 @@
           <label>Password</label>
           <input type="password" id="loginPass" placeholder="••••••••" required value="password">
         </div>
+        <div class="form-field full">
+          <label>Role</label>
+          <select id="loginRole">
+            <option value="admin">Administrator (Full Access)</option>
+            <option value="user">User (Attendance Only)</option>
+          </select>
+        </div>
       </div>
       <div style="display:flex; justify-content:space-between; align-items:center; margin: 16px 0;">
         <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:var(--ink-soft); cursor:pointer;">
@@ -47,7 +49,7 @@
         </label>
         <a href="#" style="font-size:13px; color:var(--violet); text-decoration:none; font-weight:600;">Forgot Password?</a>
       </div>
-      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; margin-top:20px;">Login to ERP</button>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleLogin()">Login to ERP</button>
     </form>
   </div>
 </div>
@@ -98,7 +100,7 @@
       <div class="row">
         <div class="mini-avatar">FN</div>
         <div>
-          <div class="name" id="userNameDisplay">Firoj Naik</div>
+          <div class="name">Firoj Naik</div>
           <div class="role" id="displayRole">Administrator</div>
         </div>
         <button class="icon-btn-sm" title="Logout" onclick="handleLogout()" style="margin-left:auto;">
@@ -133,7 +135,7 @@
     <section class="view admin-only active" id="view-dashboard">
       <div class="page-head">
         <div>
-          <h1>Good to see you, Admin 👋</h1>
+          <h1>Good to see you, Firoj 👋</h1>
           <p id="dateLine"></p>
         </div>
         <button class="btn btn-primary" onclick="openStudentModal()">
