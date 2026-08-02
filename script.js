@@ -1,7 +1,6 @@
 /* ============================================================
-   DATA MODEL & CONFIG
+   DATA MODEL
 ============================================================ */
-const API_URL = 'http://localhost:5000/api';
 const SUBJECTS = ['Database Systems', 'Java Programming', 'Data Structures', 'Web Development', 'Computer Networks'];
 const DEPARTMENTS = ['MCA', 'MBA'];
 const SEMESTERS = ['Semester 1', 'Semester 2', 'Semester 3', 'Semester 4', 'Semester 5', 'Semester 6'];
@@ -13,6 +12,8 @@ const AVATAR_GRADIENTS = [
   'linear-gradient(135deg,#a06df6,#f646d1)',
   'linear-gradient(135deg,#46c6fc,#46f6d5)'
 ];
+const FIRST_NAMES = ['Ananya','Rohan','Priya','Kabir','Ishita','Aarav','Meera','Vivaan','Sara','Dev','Naina','Yusuf','Tanvi','Arjun','Diya','Kian','Riya','Sameer','Neha','Omar'];
+const LAST_NAMES = ['Sharma','Verma','Iyer','Khan','Reddy','Nair','Kapoor','Bose','Malhotra','Rao','Singh','Das','Chatterjee','Mehta','Patel'];
 
 let state = {
   students: [],
@@ -21,8 +22,7 @@ let state = {
   currentStatus: 'active',
   attendanceDate: todayISO(),
   currentDrawerId: null,
-  role: 'admin',
-  token: localStorage.getItem('token') || null
+  role: 'admin'
 };
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
@@ -42,25 +42,34 @@ function dateMinus(n){
   const d = new Date(); d.setDate(d.getDate()-n); return d.toISOString().slice(0,10);
 }
 
-/* ============================================================
-   GLOBAL LOADER & API CALLS
-============================================================ */
-const toggleLoader = (show) => {
-    document.getElementById('globalLoader').style.display = show ? 'flex' : 'none';
-};
-
-async function apiCall(endpoint, method = 'GET', body = null) {
-    const headers = { 'Content-Type': 'application/json' };
-    if (state.token) headers['Authorization'] = `Bearer ${state.token}`;
-    
-    const options = { method, headers };
-    if (body) options.body = JSON.stringify(body);
-    
-    const response = await fetch(`${API_URL}${endpoint}`, options);
-    const data = await response.json();
-    
-    if (!response.ok) throw new Error(data.error || 'API Error');
-    return data;
+function seedData(){
+  const list = [];
+  for(let i=0;i<24;i++){
+    const name = FIRST_NAMES[i % FIRST_NAMES.length] + ' ' + LAST_NAMES[(i*3) % LAST_NAMES.length];
+    const department = DEPARTMENTS[i % DEPARTMENTS.length];
+    const semester = SEMESTERS[i % SEMESTERS.length];
+    const grades = {};
+    SUBJECTS.forEach((s,idx)=>{ grades[s] = 55 + Math.floor(((i*13+idx*17)%46)); });
+    const attendance = {};
+    for(let d=0; d<21; d++){
+      const r = (i*7+d*3) % 10;
+      attendance[dateMinus(d)] = r < 7 ? 'present' : (r < 9 ? 'absent' : 'late');
+    }
+    list.push({
+      id: uid(),
+      name,
+      email: name.toLowerCase().replace(' ','.') + '@cime.edu',
+      phone: '+91 9' + (100000000 + i*7654321 % 899999999),
+      gender: i%3===0?'Male':(i%3===1?'Female':'Other'),
+      department, semester,
+      enrollDate: dateMinus(200 - i*4),
+      status: i % 9 === 0 ? 'inactive' : 'active',
+      avatar: hashPick(AVATAR_GRADIENTS, name),
+      grades,
+      attendance
+    });
+  }
+  return list;
 }
 
 /* ============================================================
@@ -82,34 +91,27 @@ const ICO = {
 /* ============================================================
    AUTH & THEME
 ============================================================ */
-async function handleLogin(e) {
-  e.preventDefault();
-  toggleLoader(true);
-  try {
-      const email = document.getElementById('loginEmail').value;
-      const pass = document.getElementById('loginPass').value;
-      
-      const data = await apiCall('/auth/login', 'POST', { email, password: pass });
-      
-      state.token = data.token;
-      state.role = data.role;
-      localStorage.setItem('token', data.token);
-      
-      document.getElementById('loginOverlay').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'flex';
-      
-      initApp();
-  } catch (err) {
-      showToast(err.message, 'error');
-  } finally {
-      toggleLoader(false);
+function handleLogin() {
+  const role = document.getElementById('loginRole').value;
+  state.role = role;
+  
+  document.getElementById('loginOverlay').style.display = 'none';
+  document.getElementById('mainApp').style.display = 'flex';
+  
+  document.getElementById('displayRole').textContent = role === 'admin' ? 'Administrator' : 'User';
+  
+  if (role === 'user') {
+    document.body.classList.add('role-user');
+    switchView('attendance');
+  } else {
+    document.body.classList.remove('role-user');
+    switchView('dashboard');
   }
 }
 
 function handleLogout() {
-    localStorage.removeItem('token');
-    state.token = null;
-    location.reload();
+  document.getElementById('mainApp').style.display = 'none';
+  document.getElementById('loginOverlay').style.display = 'flex';
 }
 
 function toggleTheme() {
@@ -149,27 +151,6 @@ document.getElementById('sidebarOverlay').addEventListener('click', closeSidebar
 function closeSidebarMobile(){
   document.getElementById('sidebar').classList.remove('open');
   document.getElementById('sidebarOverlay').classList.remove('open');
-}
-
-/* ============================================================
-   FETCH DATA
-============================================================ */
-async function fetchStudents() {
-    try {
-        state.students = await apiCall('/students');
-        
-        // Setup initial default attributes for fetched objects if missing (like grades/attendance dicts)
-        state.students = state.students.map(s => ({
-            ...s, 
-            grades: s.grades || Object.fromEntries(SUBJECTS.map(sub => [sub, 65 + Math.floor(Math.random() * 30)])),
-            attendance: s.attendance || {}
-        }));
-        
-        renderStudentsList();
-        renderDashboard();
-    } catch(err) {
-        showToast('Failed to load students', 'error');
-    }
 }
 
 
@@ -277,12 +258,10 @@ function renderDeptChart(){
 }
 
 function studentAvgGrade(s){
-  if(!s.grades) return 0;
-  const vals = SUBJECTS.map(su=>s.grades[su] || 0);
+  const vals = SUBJECTS.map(su=>s.grades[su]);
   return Math.round(vals.reduce((a,b)=>a+b,0)/vals.length);
 }
 function studentAttendanceRate(s){
-  if(!s.attendance) return 0;
   const entries = Object.values(s.attendance);
   if(!entries.length) return 0;
   const present = entries.filter(v=>v==='present').length;
@@ -290,7 +269,7 @@ function studentAttendanceRate(s){
 }
 
 function renderRecentStudents(){
-  const recent = [...state.students].sort((a,b)=> (b.enroll_date||'').localeCompare(a.enroll_date||'')).slice(0,5);
+  const recent = [...state.students].sort((a,b)=> b.enrollDate.localeCompare(a.enrollDate)).slice(0,5);
   document.getElementById('recentStudentsList').innerHTML = recent.map(s=>personRowHTML(s, true)).join('') || emptyRow();
 }
 
@@ -301,7 +280,7 @@ function personRowHTML(s, compact){
   const letter = letterGrade(avg);
   return `
   <div class="person-row" data-id="${s.id}">
-    <div class="avatar" style="background:${s.avatar || 'var(--grad-primary)'}">${initials(s.name)}</div>
+    <div class="avatar" style="background:${s.avatar}">${initials(s.name)}</div>
     <div class="person-info">
       <div class="person-name">${s.name}</div>
       <div class="person-meta">${s.email}</div>
@@ -389,7 +368,7 @@ function openStudentModal(id){
     document.getElementById('f_gender').value = s.gender;
     document.getElementById('f_dept').value = s.department;
     document.getElementById('f_sem').value = s.semester;
-    document.getElementById('f_enroll').value = s.enroll_date || todayISO();
+    document.getElementById('f_enroll').value = s.enrollDate;
     setStatus(s.status);
   } else {
     document.getElementById('studentForm').reset();
@@ -404,39 +383,34 @@ function setStatus(s){
   document.getElementById('statusActiveBtn').classList.toggle('selected', s==='active');
   document.getElementById('statusInactiveBtn').classList.toggle('selected', s==='inactive');
 }
-
-async function submitStudentForm(){
+function submitStudentForm(){
   const name = document.getElementById('f_name').value.trim();
   const email = document.getElementById('f_email').value.trim();
   if(!name || !email){ showToast('Please fill in name and email.', 'error'); return; }
-  
   const payload = {
     name, email,
     phone: document.getElementById('f_phone').value.trim(),
     gender: document.getElementById('f_gender').value,
     department: document.getElementById('f_dept').value,
     semester: document.getElementById('f_sem').value,
-    enroll_date: document.getElementById('f_enroll').value || todayISO(),
-    status: state.currentStatus,
-    avatar: hashPick(AVATAR_GRADIENTS, name) 
+    enrollDate: document.getElementById('f_enroll').value || todayISO(),
+    status: state.currentStatus
   };
-  
-  toggleLoader(true);
-  try {
-      if(state.editingId){
-          await apiCall(`/students/${state.editingId}`, 'PUT', payload);
-          showToast('Student profile updated.', 'success');
-      } else {
-          await apiCall('/students', 'POST', payload);
-          showToast('New student added.', 'success');
-      }
-      closeStudentModal();
-      await fetchStudents(); 
-  } catch(err) {
-      showToast(err.message, 'error');
-  } finally {
-      toggleLoader(false);
+  if(state.editingId){
+    const s = state.students.find(x=>x.id===state.editingId);
+    Object.assign(s, payload);
+    showToast('Student profile updated.', 'success');
+  } else {
+    state.students.unshift({
+      id: uid(), ...payload,
+      avatar: hashPick(AVATAR_GRADIENTS, name),
+      grades: Object.fromEntries(SUBJECTS.map(s=>[s, 65+Math.floor(Math.random()*30)])),
+      attendance: {}
+    });
+    showToast('New student added.', 'success');
   }
+  closeStudentModal();
+  refreshAll();
 }
 
 /* Delete */
@@ -447,19 +421,11 @@ function openDeleteModal(id){
   document.getElementById('deleteModalBackdrop').classList.add('open');
 }
 function closeDeleteModal(){ document.getElementById('deleteModalBackdrop').classList.remove('open'); state.deletingId=null; }
-
-async function confirmDelete(){
-    toggleLoader(true);
-    try {
-        await apiCall(`/students/${state.deletingId}`, 'DELETE');
-        showToast('Student removed.', 'success');
-        closeDeleteModal();
-        await fetchStudents();
-    } catch(err) {
-        showToast(err.message, 'error');
-    } finally {
-        toggleLoader(false);
-    }
+function confirmDelete(){
+  state.students = state.students.filter(s=>s.id!==state.deletingId);
+  showToast('Student removed.', 'success');
+  closeDeleteModal();
+  refreshAll();
 }
 
 /* ============================================================
@@ -481,10 +447,10 @@ function renderAttendanceView(){
   const list = state.students.filter(s=> s.department===dept && s.semester===sem);
   
   container.innerHTML = list.map(s=>{
-    const rec = (s.attendance && s.attendance[state.attendanceDate]) || 'present';
+    const rec = s.attendance[state.attendanceDate] || 'present';
     return `
     <div class="person-row" data-att-id="${s.id}">
-      <div class="avatar" style="background:${s.avatar || 'var(--grad-primary)'}">${initials(s.name)}</div>
+      <div class="avatar" style="background:${s.avatar}">${initials(s.name)}</div>
       <div class="person-info">
         <div class="person-name">${s.name}</div>
         <div class="person-meta">${s.department} · ${s.semester}</div>
@@ -501,7 +467,6 @@ function renderAttendanceView(){
 
 function setAttMark(id, mark){
   const s = state.students.find(x=>x.id===id);
-  if(!s.attendance) s.attendance = {};
   s.attendance[state.attendanceDate] = mark;
   renderAttendanceView();
 }
@@ -509,7 +474,7 @@ function setAttMark(id, mark){
 function renderAttSummary(list){
   let p=0,a=0,l=0;
   list.forEach(s=>{
-    const rec = (s.attendance && s.attendance[state.attendanceDate]) || 'present';
+    const rec = s.attendance[state.attendanceDate];
     if(rec==='present') p++; else if(rec==='absent') a++; else if(rec==='late') l++;
   });
   document.getElementById('attSummary').innerHTML = `
@@ -546,12 +511,12 @@ function renderResultsView(){
   }
 
   document.getElementById('gradeTableBody').innerHTML = list.map(s=>{
-    const score = (s.grades && s.grades[subj]) || 0;
+    const score = s.grades[subj];
     const letter = letterGrade(score);
     const avg = studentAvgGrade(s);
     return `
     <tr>
-      <td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar" style="width:32px;height:32px;font-size:11.5px;background:${s.avatar || 'var(--grad-primary)'}">${initials(s.name)}</div>${s.name}</div></td>
+      <td><div style="display:flex;align-items:center;gap:10px;"><div class="avatar" style="width:32px;height:32px;font-size:11.5px;background:${s.avatar}">${initials(s.name)}</div>${s.name}</div></td>
       <td>${s.department} · ${s.semester}</td>
       <td><input type="number" min="0" max="100" class="grade-input" value="${score}" onchange="updateGrade('${s.id}','${subj}',this.value)"></td>
       <td><span class="grade-badge" style="background:${gradeColor(letter)};width:30px;height:30px;font-size:12px;">${letter}</span></td>
@@ -562,7 +527,6 @@ function renderResultsView(){
 function updateGrade(id, subj, val){
   const s = state.students.find(x=>x.id===id);
   let v = parseInt(val,10); if(isNaN(v)) v=0; v = Math.max(0,Math.min(100,v));
-  if(!s.grades) s.grades = {};
   s.grades[subj] = v;
   showToast(`Updated ${subj} score for ${s.name}.`, 'success');
   renderResultsView();
@@ -621,7 +585,7 @@ function openDrawer(id){
   document.getElementById('tab-profile').innerHTML = `
     <div class="info-line">${ICO.mail}<span class="lbl">Email</span>${s.email}</div>
     <div class="info-line">${ICO.phone}<span class="lbl">Phone</span>${s.phone||'—'}</div>
-    <div class="info-line">${ICO.cal}<span class="lbl">Enrolled</span>${s.enroll_date||'—'}</div>
+    <div class="info-line">${ICO.cal}<span class="lbl">Enrolled</span>${s.enrollDate}</div>
     <div class="info-line">${ICO.users}<span class="lbl">Gender</span>${s.gender}</div>
     <div class="info-line" style="border-bottom:none;"><span class="lbl">Status</span><span class="pill ${s.status==='active'?'pill-active':'pill-inactive'}">${s.status}</span></div>
     <div class="modal-actions" style="margin-top:18px;">
@@ -630,7 +594,7 @@ function openDrawer(id){
     </div>
   `;
   document.getElementById('tab-grades').innerHTML = SUBJECTS.map(su=>{
-    const score = (s.grades && s.grades[su]) || 0; const letter = letterGrade(score);
+    const score = s.grades[su]; const letter = letterGrade(score);
     return `<div class="info-line"><span class="lbl">${su}</span><span style="flex:1">${score}%</span><span class="grade-badge" style="width:28px;height:28px;font-size:11px;background:${gradeColor(letter)}">${letter}</span></div>`;
   }).join('') + `<div class="info-line" style="border-bottom:none;font-weight:800;"><span class="lbl">Average</span>${studentAvgGrade(s)}%</div>`;
   const days = [];
@@ -638,7 +602,7 @@ function openDrawer(id){
   document.getElementById('tab-attendance').innerHTML = `
     <p class="card-sub" style="margin-bottom:10px;">Last 14 days · Attendance rate ${studentAttendanceRate(s)}%</p>
     <div class="mini-att-grid">${days.map(d=>{
-      const r = (s.attendance && s.attendance[d]);
+      const r = s.attendance[d];
       const bg = r==='present'?'#1fcfa8':(r==='late'?'#ffb648':(r==='absent'?'#ff6b81':'#e4e6f2'));
       const lbl = r? r[0].toUpperCase() : '·';
       return `<div class="mini-att-cell" style="background:${bg}" title="${d}: ${r||'no record'}">${lbl}</div>`;
@@ -661,7 +625,6 @@ function switchTab(tab){
 ============================================================ */
 function showToast(msg, type){
   const wrap = document.getElementById('toastWrap');
-  if(!wrap) return;
   const el = document.createElement('div');
   el.className = 'toast ' + (type||'success');
   el.innerHTML = (type==='error'? ICO.alert : ICO.check) + `<span>${msg}</span>`;
@@ -679,20 +642,9 @@ function refreshAll(){
   renderAttendanceView();
   renderResultsView();
 }
-
-async function initApp(){
-    document.getElementById('displayRole').textContent = state.role === 'admin' ? 'Administrator' : 'User';
-    if(state.role === 'admin') await fetchStudents();
-    else refreshAll();
-}
-
 function init(){
+  state.students = seedData();
   populateFilters();
-  if(state.token) {
-      document.getElementById('loginOverlay').style.display = 'none';
-      document.getElementById('mainApp').style.display = 'flex';
-      initApp();
-  }
+  refreshAll();
 }
-
 init();
