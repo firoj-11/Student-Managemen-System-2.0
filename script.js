@@ -22,7 +22,8 @@ let state = {
   currentStatus: 'active',
   attendanceDate: todayISO(),
   currentDrawerId: null,
-  role: 'admin'
+  role: 'admin',
+  currentUser: { name: 'Firoj Naik', email: 'admin@cime.edu' }
 };
 
 function todayISO(){ return new Date().toISOString().slice(0,10); }
@@ -89,24 +90,155 @@ const ICO = {
 };
 
 /* ============================================================
-   AUTH & THEME
+   AUTH, REGISTRATION & LOGIN ANIMATIONS
 ============================================================ */
+function switchAuthMode(mode) {
+  const loginForm = document.getElementById('loginForm');
+  const regForm = document.getElementById('registerForm');
+  const tabLogin = document.getElementById('tabLoginBtn');
+  const tabReg = document.getElementById('tabRegisterBtn');
+
+  if(mode === 'login') {
+    loginForm.style.display = 'flex';
+    regForm.style.display = 'none';
+    tabLogin.classList.add('active');
+    tabReg.classList.remove('active');
+  } else {
+    loginForm.style.display = 'none';
+    regForm.style.display = 'flex';
+    regForm.style.flexDirection = 'column';
+    tabReg.classList.add('active');
+    tabLogin.classList.remove('active');
+  }
+}
+
+function handleRegister() {
+  const name = document.getElementById('regName').value.trim();
+  const email = document.getElementById('regEmail').value.trim();
+  const role = document.getElementById('regRole').value;
+  const dept = document.getElementById('regDept').value;
+
+  if(!name || !email) {
+    showToast('Please complete all mandatory fields.', 'error');
+    return;
+  }
+
+  // Register state student entry
+  const newStudent = {
+    id: uid(),
+    name, email,
+    phone: '+91 9' + Math.floor(100000000 + Math.random() * 899999999),
+    gender: 'Other',
+    department: dept,
+    semester: 'Semester 1',
+    enrollDate: todayISO(),
+    status: 'active',
+    avatar: hashPick(AVATAR_GRADIENTS, name),
+    grades: Object.fromEntries(SUBJECTS.map(s=>[s, 75+Math.floor(Math.random()*20)])),
+    attendance: {}
+  };
+
+  state.students.unshift(newStudent);
+  state.currentUser = { name, email };
+  state.role = role;
+
+  showToast('Account successfully registered!', 'success');
+  triggerWelcomeAnimation(name, role);
+}
+
 function handleLogin() {
   const role = document.getElementById('loginRole').value;
+  const email = document.getElementById('loginEmail').value;
+  const name = email.split('@')[0].replace('.', ' ');
+  const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
+
   state.role = role;
-  
+  state.currentUser = { name: formattedName, email };
+
+  triggerWelcomeAnimation(formattedName, role);
+}
+
+function triggerWelcomeAnimation(userName, role) {
   document.getElementById('loginOverlay').style.display = 'none';
-  document.getElementById('mainApp').style.display = 'flex';
   
-  document.getElementById('displayRole').textContent = role === 'admin' ? 'Administrator' : 'User';
+  const welcomeOverlay = document.getElementById('welcomeOverlay');
+  const welcomeTitle = document.getElementById('welcomeTitle');
+  const welcomeSub = document.getElementById('welcomeSub');
+
+  welcomeTitle.textContent = `Welcome, ${userName}!`;
+  welcomeSub.textContent = `Initializing your ${role === 'admin' ? 'Administrator' : 'Student'} portal...`;
   
-  if (role === 'user') {
-    document.body.classList.add('role-user');
-    switchView('attendance');
-  } else {
-    document.body.classList.remove('role-user');
-    switchView('dashboard');
+  welcomeOverlay.classList.add('active');
+  startConfettiAnimation();
+
+  setTimeout(() => {
+    welcomeOverlay.classList.remove('active');
+    stopConfettiAnimation();
+
+    // Show App
+    document.getElementById('mainApp').style.display = 'flex';
+    document.getElementById('displayRole').textContent = role === 'admin' ? 'Administrator' : 'User';
+    document.getElementById('sidebarUserName').textContent = userName;
+    document.getElementById('welcomeUserGreeting').textContent = `Good to see you, ${userName} 👋`;
+    
+    const userInitials = initials(userName);
+    document.getElementById('sidebarAvatar').textContent = userInitials;
+    document.getElementById('topbarAvatar').textContent = userInitials;
+
+    if (role === 'user') {
+      document.body.classList.add('role-user');
+      switchView('attendance');
+    } else {
+      document.body.classList.remove('role-user');
+      switchView('dashboard');
+    }
+
+    refreshAll();
+  }, 2200);
+}
+
+/* Confetti Particle Engine */
+let confettiAnimId = null;
+function startConfettiAnimation() {
+  const canvas = document.getElementById('confettiCanvas');
+  const ctx = canvas.getContext('2d');
+  canvas.width = window.innerWidth;
+  canvas.height = window.innerHeight;
+
+  const particles = Array.from({ length: 90 }).map(() => ({
+    x: canvas.width / 2,
+    y: canvas.height / 2 + 50,
+    vx: (Math.random() - 0.5) * 16,
+    vy: (Math.random() - 0.7) * 18,
+    size: Math.random() * 8 + 4,
+    color: ['#6d5df6', '#1fcfa8', '#ff6b81', '#ffb648', '#46a0fc'][Math.floor(Math.random() * 5)],
+    rotation: Math.random() * 360,
+    rotSpeed: (Math.random() - 0.5) * 10
+  }));
+
+  function render() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    particles.forEach(p => {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += 0.35; // gravity
+      p.rotation += p.rotSpeed;
+
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate((p.rotation * Math.PI) / 180);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+      ctx.restore();
+    });
+
+    confettiAnimId = requestAnimationFrame(render);
   }
+  render();
+}
+
+function stopConfettiAnimation() {
+  if (confettiAnimId) cancelAnimationFrame(confettiAnimId);
 }
 
 function handleLogout() {
@@ -493,7 +625,7 @@ document.getElementById('attSemFilter').addEventListener('change', renderAttenda
 function saveAttendance(){ showToast('Attendance saved for ' + state.attendanceDate + '.', 'success'); renderDashboard(); }
 
 /* ============================================================
-   RESULTS VIEW (Formerly Grades)
+   RESULTS VIEW
 ============================================================ */
 function renderResultsView(){
   const dept = document.getElementById('resDeptFilter').value;
@@ -503,7 +635,6 @@ function renderResultsView(){
   
   let list = state.students.filter(s=> (!dept || s.department===dept) && (!sem || s.semester===sem));
   
-  // Sort Logic
   if (sort === 'rank') {
     list.sort((a,b) => studentAvgGrade(b) - studentAvgGrade(a));
   } else {
