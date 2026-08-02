@@ -15,16 +15,34 @@
 <div class="orb orb2"></div>
 <div class="orb orb3"></div>
 
-<!-- LOGIN PAGE -->
+<!-- POST-LOGIN ANIMATION OVERLAY -->
+<div class="welcome-overlay" id="welcomeOverlay">
+  <canvas id="confettiCanvas"></canvas>
+  <div class="welcome-card" id="welcomeCard">
+    <div class="welcome-icon">🎉</div>
+    <h2 id="welcomeTitle">Welcome Back!</h2>
+    <p id="welcomeSub">Logging into Cohort ERP system...</p>
+  </div>
+</div>
+
+<!-- AUTH OVERLAY (LOGIN / REGISTER) -->
 <div class="login-overlay" id="loginOverlay">
   <div class="card login-card">
-    <div class="brand" style="justify-content:center; padding-bottom: 20px;">
+    <div class="brand" style="justify-content:center; padding-bottom: 12px;">
       <div class="brand-mark"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5-10-5Z"/><path d="M6 12v5c0 1.5 2.5 3 6 3s6-1.5 6-3v-5"/></svg></div>
       <div>
         <div class="brand-name">Cohort ERP</div>
         <div class="brand-sub">CIME Portal</div>
       </div>
     </div>
+
+    <!-- Auth Mode Switcher -->
+    <div class="auth-tabs">
+      <button class="auth-tab-btn active" id="tabLoginBtn" onclick="switchAuthMode('login')">Sign In</button>
+      <button class="auth-tab-btn" id="tabRegisterBtn" onclick="switchAuthMode('register')">Register</button>
+    </div>
+
+    <!-- LOGIN FORM -->
     <form id="loginForm" onsubmit="return false;">
       <div class="form-grid" style="grid-template-columns: 1fr;">
         <div class="form-field full">
@@ -51,6 +69,40 @@
       </div>
       <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;" onclick="handleLogin()">Login to ERP</button>
     </form>
+
+    <!-- NEW REGISTRATION FORM -->
+    <form id="registerForm" onsubmit="return false;" style="display: none;">
+      <div class="form-grid" style="grid-template-columns: 1fr;">
+        <div class="form-field full">
+          <label>Full Name</label>
+          <input type="text" id="regName" placeholder="e.g. John Doe" required>
+        </div>
+        <div class="form-field full">
+          <label>Email Address</label>
+          <input type="email" id="regEmail" placeholder="user@cime.edu" required>
+        </div>
+        <div class="form-field full">
+          <label>Password</label>
+          <input type="password" id="regPass" placeholder="Create a password" required>
+        </div>
+        <div class="form-field full">
+          <label>Account Role</label>
+          <select id="regRole">
+            <option value="user">User (Student View)</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        <div class="form-field full">
+          <label>Department</label>
+          <select id="regDept">
+            <option value="MCA">MCA</option>
+            <option value="MBA">MBA</option>
+          </select>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center; margin-top: 18px;" onclick="handleRegister()">Create Account</button>
+    </form>
+
   </div>
 </div>
 
@@ -98,9 +150,9 @@
 
     <div class="sidebar-footer">
       <div class="row">
-        <div class="mini-avatar">FN</div>
+        <div class="mini-avatar" id="sidebarAvatar">FN</div>
         <div>
-          <div class="name">Firoj Naik</div>
+          <div class="name" id="sidebarUserName">Firoj Naik</div>
           <div class="role" id="displayRole">Administrator</div>
         </div>
         <button class="icon-btn-sm" title="Logout" onclick="handleLogout()" style="margin-left:auto;">
@@ -128,14 +180,14 @@
       </button>
 
       <button class="icon-btn" title="Notifications"><svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg><span class="dot-badge"></span></button>
-      <div class="topbar-avatar">FN</div>
+      <div class="topbar-avatar" id="topbarAvatar">FN</div>
     </div>
 
     <!-- DASHBOARD VIEW -->
     <section class="view admin-only active" id="view-dashboard">
       <div class="page-head">
         <div>
-          <h1>Good to see you, Firoj 👋</h1>
+          <h1 id="welcomeUserGreeting">Good to see you, Firoj 👋</h1>
           <p id="dateLine"></p>
         </div>
         <button class="btn btn-primary" onclick="openStudentModal()">
@@ -237,7 +289,7 @@
       </div>
     </section>
 
-    <!-- RESULTS VIEW (Formerly Grades) -->
+    <!-- RESULTS VIEW -->
     <section class="view admin-only" id="view-results">
       <div class="page-head">
         <div>
