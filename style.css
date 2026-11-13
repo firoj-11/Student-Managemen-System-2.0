@@ -109,7 +109,7 @@ button { cursor: pointer; }
   background: var(--app-bg-gradient);
   padding: 20px;
 }
-.login-card { width: 100%; max-width: 420px; padding: 36px 30px; justify-content: flex-end; }
+.login-card { width: 100%; max-width: 420px; padding: 36px 30px; }
 .login-card form { display: flex; flex-direction: column; }
 
 /* Role based display */
